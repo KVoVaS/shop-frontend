@@ -1,27 +1,43 @@
-import { Link, useParams } from 'react-router-dom';
-import { useGetProductByIdQuery } from '@/features/products/productsApi';
+import { Link } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
+import { decrement, increment, removeItem } from '@/features/cart/cartSlice';
+import { selectCartItems, selectCartTotal } from '@/features/cart/cartSelectors';
 import { formatPrice } from '@/shared/lib/format';
-import { useAppDispatch } from '@/app/hooks';
-import { addToCart } from '@/features/cart/cartSlice';
+import { QuantityStepper } from '@/components/QuantityStepper';
 
-export function ProductPage() {
-  const { id = '' } = useParams();
-  const { data, isLoading, isError } = useGetProductByIdQuery(id, { skip: !id });
+export function CartPage() {
+  const items = useAppSelector(selectCartItems);
+  const total = useAppSelector(selectCartTotal);
   const dispatch = useAppDispatch();
 
-  if (isLoading) return <p>Загрузка…</p>;
-  if (isError || !data) return <p>Товар не найден. <Link to="/">В каталог</Link></p>;
+  if (items.length === 0) {
+    return <p>Корзина пуста. <Link to="/">Перейти в каталог</Link></p>;
+  }
 
   return (
-    <section className="product">
-      <img className="product__image" src={data.image} alt={data.title} />
-      <div>
-        <h1>{data.title}</h1>
-        <p className="card__meta">★ {data.rating} · {data.category} · в наличии: {data.stock}</p>
-        <p className="product__price">{formatPrice(data.price)}</p>
-        <p>{data.description}</p>
-        <button className="btn" onClick={() => dispatch(addToCart(data))}>В корзину</button>
+    <section>
+      <h1>Корзина</h1>
+      <ul className="cart-list">
+        {items.map((item) => (
+          <li key={item.productId} className="cart-row">
+            <img src={item.image} alt={item.title} className="cart-row__image" />
+            <Link to={`/product/${item.productId}`} className="cart-row__title">{item.title}</Link>
+            <span>{formatPrice(item.price)}</span>
+            <QuantityStepper
+              value={item.quantity}
+              onIncrement={() => dispatch(increment(item.productId))}
+              onDecrement={() => dispatch(decrement(item.productId))}
+            />
+            <button className="btn btn--ghost" onClick={() => dispatch(removeItem(item.productId))}>
+              Удалить
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="cart-total">
+        Итого: <strong data-testid="cart-total">{formatPrice(total)}</strong>
       </div>
+      <Link className="btn" to="/checkout">Оформить заказ</Link>
     </section>
   );
 }
